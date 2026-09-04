@@ -17,9 +17,11 @@ export default defineConfig({
   plugins: [
     // put lazy loaded JavaScript and Wasm bundles in dist directory
     viteStaticCopy({
+      // vite-plugin-static-copy v4 preserves the matched source directory
+      // structure by default; stripBase flattens the files into dest/ as v2 did.
       targets: [
-        { src: 'node_modules/@itk-wasm/cuberille/dist/pipelines/*.{js,wasm,wasm.zst}', dest: 'pipelines' },
-        { src: 'node_modules/@itk-wasm/mesh-filters/dist/pipelines/*.{js,wasm,wasm.zst}', dest: 'pipelines' },
+        { src: 'node_modules/@itk-wasm/cuberille/dist/pipelines/*.{js,wasm,wasm.zst}', dest: 'pipelines', rename: { stripBase: true } },
+        { src: 'node_modules/@itk-wasm/mesh-filters/dist/pipelines/*.{js,wasm,wasm.zst}', dest: 'pipelines', rename: { stripBase: true } },
       ],
     })
   ],
