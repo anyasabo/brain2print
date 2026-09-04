@@ -12,7 +12,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:e2e": "playwright test",
-    "test:e2e:gpu": "GPU=1 playwright test --headed"
+    "test:e2e:cdp": "playwright test"
   },
   "dependencies": {
     "@itk-wasm/cuberille": "^0.2.0",

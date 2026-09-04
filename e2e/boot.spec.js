@@ -29,18 +29,8 @@ test("app boots and renders the shell", async ({ page }) => {
   );
   expect(swRegistered).toBe(true);
 
-  // main() populates the model dropdown, but only after niivue initializes a
-  // real GPU context. That works locally and on macOS, but not in a headless
-  // sandbox with no GPU. Assert the fuller path only when GPU=1 is set, so the
-  // test stays green where no GPU exists and still catches regressions where
-  // one does.
-  if (process.env.GPU === "1") {
-    await expect
-      .poll(() => page.locator("#modelSelect option").count(), {
-        timeout: 15_000,
-      })
-      .toBeGreaterThan(0);
-  }
-
+  // Populating the model dropdown and running segmentation need a real GPU
+  // context, which a headless sandbox lacks. The full segment-and-mesh flow is
+  // covered by pipeline.gpu.spec.js against a real WebGPU browser over CDP.
   expect(fatalErrors, `unexpected console errors:\n${fatalErrors.join("\n")}`).toEqual([]);
 });
