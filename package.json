@@ -18,7 +18,8 @@
     "@itk-wasm/mesh-filters": "^1.7.0",
     "@niivue/cbor-loader": "^1.2.1",
     "@niivue/niimath": "^1.3.3",
-    "@niivue/niivue": "^0.69.0",
+    "@niivue/niivue": "^1.0.0-rc.13",
+    "@niivue/nv-ext-image-processing": "^1.0.0-rc.13",
     "@tensorflow/tfjs": "^4.22.0",
     "gl-matrix": "^3.4.4"
   },

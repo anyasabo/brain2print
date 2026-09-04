@@ -11,10 +11,12 @@ import {
 } from "@itk-wasm/mesh-filters";
 import { iwm2meshCore, nii2iwi } from "@niivue/cbor-loader";
 import { Niimath } from "@niivue/niimath";
-import { Niivue, NVImage, NVMeshUtilities } from "@niivue/niivue";
+import { NiiVue, nii2volume } from "@niivue/niivue";
+import { conform } from "@niivue/nv-ext-image-processing";
 import { brainChopOpts, inferenceModelsList } from "./brainchop-parameters.js";
 import { isChrome, localSystemDetails } from "./brainchop-telemetry.js";
 import MyWorker from "./brainchop-webworker.js?worker";
+import { positionsIndicesToObj } from "./mesh-io.js";
 
 // Use local, vendored WebAssembly module assets
 const viteBaseUrl = import.meta.env.BASE_URL;
@@ -34,6 +36,7 @@ registerSW({ immediate: true });
 
 async function main() {
   let chopWorker: Worker | undefined;
+  let extCtx: ReturnType<NiiVue["createExtensionContext"]>;
   const niimath = new Niimath();
   await niimath.init();
   niimath.setOutputDataType("input"); // call before setting image since this is passed to the image constructor
@@ -42,13 +45,15 @@ async function main() {
     window.open(url, "_blank");
   };
   function updateBackgroundOpacity() {
-    nv1.setOpacity(0, Number(opacitySlider0.value) / 255);
+    // v1 dropped setOpacity(idx, v); set the volume's opacity field directly.
+    nv1.volumes[0].opacity = Number(opacitySlider0.value) / 255;
     nv1.updateGLVolume();
   }
   opacitySlider0.oninput = updateBackgroundOpacity;
   opacitySlider1.oninput = () => {
     if (nv1.volumes.length < 2) return;
-    nv1.setOpacity(1, Number(opacitySlider1.value) / 255);
+    nv1.volumes[1].opacity = Number(opacitySlider1.value) / 255;
+    nv1.updateGLVolume();
   };
   async function ensureConformed() {
     const nii = nv1.volumes[0];
@@ -70,13 +75,21 @@ async function main() {
     )
       isConformed = false;
     if (isConformed) return;
-    const nii2 = await nv1.conform(nii, false, true, false, true);
-    await nv1.removeVolume(nv1.volumes[0]);
+    // v1: conform lives in @niivue/nv-ext-image-processing. Old positional call
+    // conform(nii, false, true, false, true) = toRAS:false, isLinear:true,
+    // asFloat32:false, isRobustMinMax:true.
+    const nii2 = await extCtx.applyVolumeTransform("conform", nii, {
+      toRAS: false,
+      isLinear: true,
+      asFloat32: false,
+      isRobustMinMax: true,
+    });
+    await nv1.removeVolume(0);
     await nv1.addVolume(nii2);
   }
   async function closeAllOverlays() {
     while (nv1.volumes.length > 1) {
-      await nv1.removeVolume(nv1.volumes[1]);
+      await nv1.removeVolume(1);
     }
   }
   modelSelect.onchange = async () => {
@@ -84,16 +97,20 @@ async function main() {
     await closeAllOverlays();
     await ensureConformed();
     // brainchop-parameters.js entries are augmented at runtime with these flags.
-    const model = inferenceModelsList[modelSelect.selectedIndex] as (typeof inferenceModelsList)[number] & {
+    const model = inferenceModelsList[
+      modelSelect.selectedIndex
+    ] as (typeof inferenceModelsList)[number] & {
       isNvidia: boolean;
       isScalar: boolean;
     };
     model.isNvidia = false;
     model.isScalar = scalarCheck.checked;
-    const rendererInfo = nv1.gl.getExtension("WEBGL_debug_renderer_info");
-    if (rendererInfo) {
+    // v1 no longer exposes nv1.gl; probe the renderer with a throwaway context.
+    const probeGl = document.createElement("canvas").getContext("webgl2");
+    const rendererInfo = probeGl?.getExtension("WEBGL_debug_renderer_info");
+    if (probeGl && rendererInfo) {
       model.isNvidia = (
-        nv1.gl.getParameter(rendererInfo.UNMASKED_RENDERER_WEBGL) as string
+        probeGl.getParameter(rendererInfo.UNMASKED_RENDERER_WEBGL) as string
       ).includes("NVIDIA");
     }
     const opts = brainChopOpts as typeof brainChopOpts & { rootURL: string };
@@ -151,7 +168,8 @@ async function main() {
     };
   };
   saveBtn.onclick = () => {
-    nv1.volumes[1].saveToDisk("Custom.nii");
+    // v1: NVImage lost saveToDisk(); save the overlay volume by index.
+    nv1.saveVolume({ filename: "Custom.nii", volumeByIndex: 1 });
   };
   clipCheck.onchange = () => {
     if (clipCheck.checked) {
@@ -177,35 +195,43 @@ async function main() {
     opts: { atlasSelectedColorTable: string },
     modelEntry: { isScalar?: boolean; colormapPath?: string },
   ) {
-    closeAllOverlays();
-    const overlayVolume = await nv1.volumes[0].clone();
-    overlayVolume.zeroImage();
-    const hdr = overlayVolume.hdr;
-    if (!hdr) return;
-    hdr.scl_inter = 0;
-    hdr.scl_slope = 1;
-    overlayVolume.img = new Uint8Array(img);
+    await closeAllOverlays();
+    const bgHdr = nv1.volumes[0].hdr;
+    if (!bgHdr) return;
+    // v1: NVImage lost clone()/zeroImage(); build the overlay from the
+    // background geometry plus the segmentation label image via nii2volume.
+    const overlayHdr = JSON.parse(JSON.stringify(bgHdr));
+    overlayHdr.scl_inter = 0;
+    overlayHdr.scl_slope = 1;
     const isScalar = modelEntry.isScalar === true;
+    const useLabelColormap = !isScalar && Boolean(modelEntry.colormapPath);
     if (isScalar) {
-      hdr.scl_slope = 1 / 255;
+      overlayHdr.scl_slope = 1 / 255;
+    } else if (useLabelColormap) {
+      // n.b. most models create indexed labels, but those without colormap mask scalar input
+      overlayHdr.intent_code = 1002; // NIFTI_INTENT_LABEL
+    }
+    const overlayVolume = nii2volume(
+      overlayHdr,
+      new Uint8Array(img),
+      "overlay",
+    );
+    if (isScalar) {
       overlayVolume.colormap = "viridis";
-    } else {
-      if (modelEntry.colormapPath) {
-        const cmap = await fetchJSON(modelEntry.colormapPath);
-        overlayVolume.setColormapLabel(cmap);
-        // n.b. most models create indexed labels, but those without colormap mask scalar input
-        hdr.intent_code = 1002; // NIFTI_INTENT_LABEL
-      } else {
-        let colormap = opts.atlasSelectedColorTable.toLowerCase();
-        const cmaps = nv1.colormaps();
-        if (!cmaps.includes(colormap)) {
-          colormap = "actc";
-        }
-        overlayVolume.colormap = colormap;
+    } else if (!useLabelColormap) {
+      let colormap = opts.atlasSelectedColorTable.toLowerCase();
+      const cmaps = nv1.colormaps;
+      if (!cmaps.includes(colormap)) {
+        colormap = "actc";
       }
+      overlayVolume.colormap = colormap;
     }
     overlayVolume.opacity = Number(opacitySlider1.value) / 255;
     await nv1.addVolume(overlayVolume);
+    if (useLabelColormap && modelEntry.colormapPath) {
+      const cmap = await fetchJSON(modelEntry.colormapPath);
+      await nv1.setColormapLabel(nv1.volumes.length - 1, cmap);
+    }
     saveBtn.disabled = false;
     createMeshBtn.disabled = false;
   }
@@ -234,11 +260,10 @@ async function main() {
   }
   const defaults = {
     backColor: [0.4, 0.4, 0.4, 1],
-    show3Dcrosshair: true,
-    onLocationChange: handleLocationChange,
+    is3DCrosshairVisible: true,
   };
   createMeshBtn.onclick = () => {
-    if (nv1.meshes.length > 0) nv1.removeMesh(nv1.meshes[0]);
+    if (nv1.meshes.length > 0) nv1.removeMesh(0);
     saveMeshBtn.disabled = true;
     if (nv1.volumes.length < 1) {
       window.alert("Image not loaded. Drag and drop an image.");
@@ -269,7 +294,7 @@ async function main() {
     );
   };
   async function applyFaster() {
-    const niiBuffer = await nv1.saveImage({
+    const niiBuffer = await nv1.saveVolume({
       filename: "",
       isSaveDrawing: false,
       volumeByIndex: nv1.volumes.length - 1,
@@ -316,11 +341,10 @@ async function main() {
       (processor as unknown as { commands: unknown }).commands,
     );
     const retBlob = await processor.run("test.mz3");
-    const arrayBuffer = await retBlob.arrayBuffer();
     loadingCircle.classList.add("hidden");
-    if (nv1.meshes.length > 0) nv1.removeMesh(nv1.meshes[0]);
-    await nv1.loadFromArrayBuffer(arrayBuffer, "test.mz3");
-    nv1.reverseFaces(0);
+    if (nv1.meshes.length > 0) nv1.removeMesh(0);
+    // niivue v1 dropped loadFromArrayBuffer; add the niimath MZ3 as a File.
+    await nv1.addMesh({ url: new File([retBlob], "test.mz3") });
   }
   async function applyQuality() {
     const volIdx = nv1.volumes.length - 1;
@@ -329,7 +353,7 @@ async function main() {
     /*let hollowInt = Number(hollowSelect.value )
     if (hollowInt < 0){
       const vol = nv1.volumes[volIdx]
-      const niiBuffer = await nv1.saveImage({volumeByIndex: nv1.volumes.length - 1})
+      const niiBuffer = await nv1.saveVolume({volumeByIndex: nv1.volumes.length - 1})
       const niiBlob = new Blob([niiBuffer], { type: 'application/octet-stream' })
       const niiFile = new File([niiBlob], 'input.nii')
       niimath.setOutputDataType('input') // call before setting image since this is passed to the image constructor
@@ -372,15 +396,14 @@ async function main() {
     const { outputMesh: largestOnly } =
       await keepLargestComponent(repairedMesh);
     while (nv1.meshes.length > 0) {
-      nv1.removeMesh(nv1.meshes[0]);
+      nv1.removeMesh(0);
     }
     const initialNiiMesh = iwm2meshCore(largestOnly);
-    const initialNiiMeshBuffer = NVMeshUtilities.createMZ3(
+    const initialObj = positionsIndicesToObj(
       initialNiiMesh.positions,
       initialNiiMesh.indices,
-      false,
     );
-    await nv1.loadFromArrayBuffer(initialNiiMeshBuffer, "trefoil.mz3");
+    await nv1.addMesh({ url: new File([initialObj], "trefoil.obj") });
     meshProcessingMsg.textContent = "Smoothing and remeshing";
     const smooth = parseInt(smoothSlide.value);
     const shrink = parseFloat(shrinkPct.value);
@@ -396,14 +419,10 @@ async function main() {
     loadingCircle.classList.add("hidden");
     meshProcessingMsg.classList.add("hidden");
     while (nv1.meshes.length > 0) {
-      nv1.removeMesh(nv1.meshes[0]);
+      nv1.removeMesh(0);
     }
-    const meshBuffer = NVMeshUtilities.createMZ3(
-      niiMesh.positions,
-      niiMesh.indices,
-      false,
-    );
-    await nv1.loadFromArrayBuffer(meshBuffer, "trefoil.mz3");
+    const finalObj = positionsIndicesToObj(niiMesh.positions, niiMesh.indices);
+    await nv1.addMesh({ url: new File([finalObj], "trefoil.obj") });
   }
   saveMeshBtn.onclick = () => {
     if (nv1.meshes.length < 1) {
@@ -412,7 +431,7 @@ async function main() {
       saveDialog.show();
     }
   };
-  applySaveBtn.onclick = () => {
+  applySaveBtn.onclick = async () => {
     if (nv1.meshes.length < 1) {
       return;
     }
@@ -425,29 +444,41 @@ async function main() {
     }
     const scale = 1 / Number(scaleSelect.value);
     const mesh0 = nv1.meshes[0];
-    if (!mesh0.pts || !mesh0.tris) return;
-    const pts = mesh0.pts.slice();
-    for (let i = 0; i < pts.length; i++) pts[i] *= scale;
-    NVMeshUtilities.saveMesh(pts, mesh0.tris, `mesh.${format}`, true);
+    if (!mesh0.positions) return;
+    // v1's saveMesh writes the mesh's own positions and infers the format from
+    // the filename. It has no scale option, so scale positions in place, save,
+    // then restore.
+    const positions = mesh0.positions;
+    if (scale !== 1) {
+      for (let i = 0; i < positions.length; i++) positions[i] *= scale;
+    }
+    await nv1.saveMesh(0, `mesh.${format}`);
+    if (scale !== 1) {
+      for (let i = 0; i < positions.length; i++) positions[i] /= scale;
+    }
   };
-  const nv1 = new Niivue(defaults);
+  const nv1 = new NiiVue(defaults);
+  // niivue v1 moved conform() out of the core into an extension.
+  extCtx = nv1.createExtensionContext();
+  extCtx.registerVolumeTransform(conform);
   nv1.attachToCanvas(gl1);
-  nv1.opts.dragMode = nv1.dragModes.pan;
-  nv1.opts.multiplanarForceRender = true;
-  nv1.opts.yoke3Dto2DZoom = true;
-  nv1.opts.crosshairGap = 11;
+  nv1.setDragMode("pan");
+  nv1.crosshairGap = 11;
   await nv1.loadVolumes([{ url: "./t1_crop.nii.gz" }]);
   for (let i = 0; i < inferenceModelsList.length; i++) {
-    var option = document.createElement("option");
+    const option = document.createElement("option");
     option.text = inferenceModelsList[i].modelName;
     option.value = inferenceModelsList[i].id.toString();
     modelSelect.appendChild(option);
   }
   updateQualityControls();
-  nv1.onImageLoaded = doLoadImage;
-  nv1.onMeshLoaded = (volume) => {
+  nv1.addEventListener("volumeLoaded", doLoadImage);
+  nv1.addEventListener("meshLoaded", () => {
     saveMeshBtn.disabled = false;
-  };
+  });
+  nv1.addEventListener("locationChange", (data) => {
+    handleLocationChange(data.detail);
+  });
   modelSelect.selectedIndex = -1;
   console.log("brain2print 20241230");
   // uncomment next two lines to automatically run segmentation when web page is loaded
