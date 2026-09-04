@@ -8,6 +8,10 @@ export default defineConfig({
   server: {
     open: "index.html",
   },
+  // Do not auto-open a browser for `vite preview` (used by tests and CI).
+  preview: {
+    open: false,
+  },
   worker: {
     format: "esm",
   },
