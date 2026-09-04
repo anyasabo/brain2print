@@ -261,6 +261,10 @@ async function main() {
   const defaults = {
     backColor: [0.4, 0.4, 0.4, 1],
     is3DCrosshairVisible: true,
+    // niivue v1's combined build defaults to WebGPU, which overflows the
+    // texture-size limit on the multiplanar tiling here. Use the WebGL2 backend,
+    // which is what 0.69 used and what the tfjs segmentation already runs on.
+    backend: "webgl2" as const,
   };
   createMeshBtn.onclick = () => {
     if (nv1.meshes.length > 0) nv1.removeMesh(0);
