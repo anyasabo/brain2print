@@ -60,7 +60,7 @@ async function detectOperatingSys() {
   }
 }
 
-async function checkWebGl2(gl) {
+async function checkWebGl2(gl: WebGL2RenderingContext | null) {
   //const gl = document.createElement('canvas').getContext('webgl2')
   if (!gl) {
     if (typeof WebGL2RenderingContext !== "undefined") {
@@ -76,7 +76,7 @@ async function checkWebGl2(gl) {
   }
 }
 
-async function detectGPUVendor(gl) {
+async function detectGPUVendor(gl: WebGLRenderingContext | null) {
   //const gl = document.createElement('canvas').getContext('webgl')
   let debugInfo;
   if (gl) {
@@ -93,7 +93,7 @@ async function detectGPUVendor(gl) {
   return null;
 }
 
-async function detectGPUVendor_v0(gl) {
+async function detectGPUVendor_v0(gl: WebGLRenderingContext | null) {
   //const gl = document.createElement('canvas').getContext('webgl')
   if (gl) {
     const debugInfo = gl.getExtension("WEBGL_debug_renderer_info");
@@ -103,9 +103,9 @@ async function detectGPUVendor_v0(gl) {
   }
 }
 
-async function detectGPUCardType_v0(gl) {
+async function detectGPUCardType_v0(gl: WebGLRenderingContext | null) {
   if (gl) {
-    if (detectBrowser() === "Firefox") {
+    if ((await detectBrowser()) === "Firefox") {
       // -- return e.g: "GeForce GTX 980/PCIe/SSE2"
       return gl.getParameter(gl.RENDERER);
     }
@@ -119,11 +119,11 @@ async function detectGPUCardType_v0(gl) {
   }
 }
 
-async function detectGPUCardType(gl) {
+async function detectGPUCardType(gl: WebGLRenderingContext | null) {
   let debugInfo;
 
   if (gl) {
-    if (detectBrowser() === "Firefox") {
+    if ((await detectBrowser()) === "Firefox") {
       // -- return e.g: "GeForce GTX 980/PCIe/SSE2"
       return gl.getParameter(gl.RENDERER);
     }
@@ -163,7 +163,18 @@ async function isChrome() {
   );
 }
 
-async function localSystemDetails(statData, gl = null) {
+// The Chrome-only, nonstandard performance.memory extension.
+interface MemoryInfo {
+  totalJSHeapSize: number;
+  usedJSHeapSize: number;
+  jsHeapSizeLimit: number;
+}
+
+// statData is a free-form telemetry bag assembled across many detectors.
+async function localSystemDetails(
+  statData: Record<string, unknown>,
+  gl: WebGL2RenderingContext | null = null,
+) {
   // -- Timing data to collect
   const today = new Date();
   if (statData.isModelFullVol) {
@@ -182,10 +193,11 @@ async function localSystemDetails(statData, gl = null) {
           statData["State"] = ""
           statData["City"] = ""
     } */
-  statData.Total_t = (Date.now() - statData.startTime) / 1000.0;
+  statData.Total_t = (Date.now() - (statData.startTime as number)) / 1000.0;
   delete statData.startTime;
   statData.Date =
-    parseInt(today.getMonth() + 1) +
+    today.getMonth() +
+    1 +
     "/" +
     today.getDate() +
     "/" +
@@ -200,13 +212,15 @@ async function localSystemDetails(statData, gl = null) {
   statData.GPU_Card_Full = await detectGPUCardType_v0(gl);
   statData.CPU_Cores = await getCPUNumCores();
   statData.Which_Brainchop = "latest";
-  if (await isChrome()) {
-    statData.Heap_Size_MB =
-      window.performance.memory.totalJSHeapSize / (1024 * 1024).toFixed(2);
-    statData.Used_Heap_MB =
-      window.performance.memory.usedJSHeapSize / (1024 * 1024).toFixed(2);
-    statData.Heap_Limit_MB =
-      window.performance.memory.jsHeapSizeLimit / (1024 * 1024).toFixed(2);
+  const memory = (window.performance as Performance & { memory?: MemoryInfo })
+    .memory;
+  if ((await isChrome()) && memory) {
+    // n.b. earlier code divided by (1024*1024).toFixed(2), a string, yielding
+    // NaN. Divide by the numeric byte count, then round to MB.
+    const bytesPerMB = 1024 * 1024;
+    statData.Heap_Size_MB = (memory.totalJSHeapSize / bytesPerMB).toFixed(2);
+    statData.Used_Heap_MB = (memory.usedJSHeapSize / bytesPerMB).toFixed(2);
+    statData.Heap_Limit_MB = (memory.jsHeapSizeLimit / bytesPerMB).toFixed(2);
   }
   if (gl) {
     console.log("MAX_TEXTURE_SIZE :", gl.getParameter(gl.MAX_TEXTURE_SIZE));
@@ -217,10 +231,12 @@ async function localSystemDetails(statData, gl = null) {
     // -- check to see   if  machine has two graphics card: one is the builtin e.g. Intel Iris Pro, the other is NVIDIA GeForce GT 750M.
     // -- check browser use which one, if debugInfo is null then installed  GPU is not used
     const debugInfo = gl.getExtension("WEBGL_debug_renderer_info");
-    console.log(
-      "VENDOR WEBGL:",
-      gl.getParameter(debugInfo.UNMASKED_VENDOR_WEBGL),
-    );
+    if (debugInfo) {
+      console.log(
+        "VENDOR WEBGL:",
+        gl.getParameter(debugInfo.UNMASKED_VENDOR_WEBGL),
+      );
+    }
     statData.Texture_Size = gl.getParameter(gl.MAX_TEXTURE_SIZE); // --returns the maximum dimension the GPU can address
   } else {
     statData.Texture_Size = null;
