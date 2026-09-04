@@ -11,8 +11,7 @@
     "format": "biome format --write .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:e2e": "playwright test",
-    "test:e2e:cdp": "playwright test"
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@itk-wasm/cuberille": "^0.2.0",

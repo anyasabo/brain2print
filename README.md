@@ -47,14 +47,12 @@ npm run format      # apply Biome formatting
 npm run typecheck   # tsc --noEmit
 npm run test        # Vitest unit tests
 npm run test:e2e    # Playwright boot smoke test (headless)
-npm run test:e2e:gpu  # full boot test on a machine with a GPU (headed)
 ```
 
 `npm run test:e2e` checks that the built app boots without errors. It does not
 run segmentation or mesh generation. Those steps need WebGPU. WebGPU does not
 work in most headless environments. To test the full segment-and-mesh flow, run
-`npm run test:e2e:gpu` on a local machine or a Mac, then check the result by
-hand.
+`npm run dev` and open the app in a WebGPU browser. See `e2e/README.md`.
 
 ## References
 
