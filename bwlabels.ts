@@ -1,12 +1,23 @@
 export class BWLabeler {
   // port of https://github.com/rordenlab/niimath/blob/master/src/bwlabel.c
   // return voxel address given row A, column B, and slice C
-  idx(A, B, C, DIM) {
+  idx(A: number, B: number, C: number, DIM: number[]) {
     return C * DIM[0] * DIM[1] + B * DIM[0] + A;
   } // idx()
 
   // determine if voxels below candidate voxel have already been assigned a label
-  check_previous_slice(bw, il, r, c, sl, dim, conn, tt, nabo, tn) {
+  check_previous_slice(
+    bw: Uint32Array,
+    il: Uint32Array,
+    r: number,
+    c: number,
+    sl: number,
+    dim: number[],
+    conn: number,
+    tt: Uint32Array,
+    nabo: Uint32Array,
+    tn: Uint32Array,
+  ) {
     let nr_set = 0;
     if (!sl) {
       return 0;
@@ -79,7 +90,11 @@ export class BWLabeler {
   } // check_previous_slice()
 
   // provisionally label all voxels in volume
-  do_initial_labelling(bw, dim, conn) {
+  do_initial_labelling(
+    bw: Uint32Array,
+    dim: number[],
+    conn: number,
+  ): [number, Uint32Array, Uint32Array] {
     const naboPS = new Uint32Array(32);
     const tn = new Uint32Array(32);
     let label = 1;
@@ -167,7 +182,12 @@ export class BWLabeler {
   } // do_initial_labelling()
 
   // translation table unifies a region that has been assigned multiple classes
-  fill_tratab(tt, nabo, nr_set, tn) {
+  fill_tratab(
+    tt: Uint32Array,
+    nabo: Uint32Array,
+    nr_set: number,
+    tn: Uint32Array,
+  ) {
     // let cntr = 0
     //tn.fill(0)
     const INT_MAX = 2147483647;
@@ -192,7 +212,12 @@ export class BWLabeler {
   } // fill_tratab()
 
   // remove any residual gaps so label numbers are dense rather than sparse
-  translate_labels(il, dim, tt, ttn) {
+  translate_labels(
+    il: Uint32Array,
+    dim: number[],
+    tt: Uint32Array,
+    ttn: number,
+  ): [number, Uint32Array] {
     const nvox = dim[0] * dim[1] * dim[2];
     let ml = 0;
     const l = new Uint32Array(nvox).fill(0);
@@ -214,7 +239,11 @@ export class BWLabeler {
   } // translate_labels()
 
   // retain only the largest cluster for each region
-  largest_original_cluster_labels(bw, cl, ls) {
+  largest_original_cluster_labels(
+    bw: Uint32Array,
+    cl: number,
+    ls: Uint32Array,
+  ): [number, Uint32Array] {
     const nvox = bw.length;
     const ls2bw = new Uint32Array(cl + 1).fill(0);
     const sumls = new Uint32Array(cl + 1).fill(0);
@@ -254,12 +283,12 @@ export class BWLabeler {
   // for an explanation and optimized C code see
   // https://github.com/seung-lab/connected-components-3d
   bwlabel(
-    img,
-    dim,
+    img: ArrayLike<number>,
+    dim: number[],
     conn = 26,
     binarize = false,
     onlyLargestClusterPerClass = false,
-  ) {
+  ): [number, Uint32Array] {
     const start = Date.now();
     const nvox = dim[0] * dim[1] * dim[2];
     const bw = new Uint32Array(nvox).fill(0);

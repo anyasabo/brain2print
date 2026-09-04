@@ -3,7 +3,7 @@ import { BWLabeler } from "./bwlabels.js";
 
 // Build a flat Uint8Array volume from a 3D array indexed as [slice][col][row],
 // matching BWLabeler.idx: addr = C*dim0*dim1 + B*dim0 + A (A=row, B=col, C=slice).
-function volume(slices) {
+function volume(slices: number[][][]) {
   const dimZ = slices.length;
   const dimY = slices[0].length;
   const dimX = slices[0][0].length;
