@@ -33,6 +33,7 @@ import { registerSW } from "virtual:pwa-register";
 registerSW({ immediate: true });
 
 async function main() {
+  let chopWorker: Worker | undefined;
   const niimath = new Niimath();
   await niimath.init();
   niimath.setOutputDataType("input"); // call before setting image since this is passed to the image constructor
@@ -40,23 +41,33 @@ async function main() {
     const url = "https://github.com/niivue/brain2print";
     window.open(url, "_blank");
   };
-  opacitySlider0.oninput = () => {
-    nv1.setOpacity(0, opacitySlider0.value / 255);
+  function updateBackgroundOpacity() {
+    nv1.setOpacity(0, Number(opacitySlider0.value) / 255);
     nv1.updateGLVolume();
-  };
+  }
+  opacitySlider0.oninput = updateBackgroundOpacity;
   opacitySlider1.oninput = () => {
     if (nv1.volumes.length < 2) return;
-    nv1.setOpacity(1, opacitySlider1.value / 255);
+    nv1.setOpacity(1, Number(opacitySlider1.value) / 255);
   };
   async function ensureConformed() {
     const nii = nv1.volumes[0];
+    const dims = nii.dims;
+    const permRAS = nii.permRAS;
     let isConformed =
-      nii.dims[1] === 256 &&
-      nii.dims[2] === 256 &&
-      nii.dims[3] === 256 &&
+      dims !== undefined &&
+      permRAS !== undefined &&
+      dims[1] === 256 &&
+      dims[2] === 256 &&
+      dims[3] === 256 &&
       nii.img instanceof Uint8Array &&
       nii.img.length === 256 * 256 * 256;
-    if (nii.permRAS[0] !== -1 || nii.permRAS[1] !== 3 || nii.permRAS[2] !== -2)
+    if (
+      permRAS === undefined ||
+      permRAS[0] !== -1 ||
+      permRAS[1] !== 3 ||
+      permRAS[2] !== -2
+    )
       isConformed = false;
     if (isConformed) return;
     const nii2 = await nv1.conform(nii, false, true, false, true);
@@ -68,20 +79,24 @@ async function main() {
       await nv1.removeVolume(nv1.volumes[1]);
     }
   }
-  modelSelect.onchange = async function () {
-    if (this.selectedIndex < 0) modelSelect.selectedIndex = 11;
+  modelSelect.onchange = async () => {
+    if (modelSelect.selectedIndex < 0) modelSelect.selectedIndex = 11;
     await closeAllOverlays();
     await ensureConformed();
-    const model = inferenceModelsList[this.selectedIndex];
+    // brainchop-parameters.js entries are augmented at runtime with these flags.
+    const model = inferenceModelsList[modelSelect.selectedIndex] as (typeof inferenceModelsList)[number] & {
+      isNvidia: boolean;
+      isScalar: boolean;
+    };
     model.isNvidia = false;
     model.isScalar = scalarCheck.checked;
     const rendererInfo = nv1.gl.getExtension("WEBGL_debug_renderer_info");
     if (rendererInfo) {
-      model.isNvidia = nv1.gl
-        .getParameter(rendererInfo.UNMASKED_RENDERER_WEBGL)
-        .includes("NVIDIA");
+      model.isNvidia = (
+        nv1.gl.getParameter(rendererInfo.UNMASKED_RENDERER_WEBGL) as string
+      ).includes("NVIDIA");
     }
-    const opts = brainChopOpts;
+    const opts = brainChopOpts as typeof brainChopOpts & { rootURL: string };
     opts.rootURL = location.href;
     const isLocalhost = Boolean(
       window.location.hostname === "localhost" ||
@@ -101,23 +116,25 @@ async function main() {
       );
       return;
     }
-    chopWorker = await new MyWorker({ type: "module" });
+    const worker = new MyWorker();
+    chopWorker = worker;
+    const vol0 = nv1.volumes[0];
     const hdr = {
-      datatypeCode: nv1.volumes[0].hdr.datatypeCode,
-      dims: nv1.volumes[0].hdr.dims,
+      datatypeCode: vol0.hdr?.datatypeCode,
+      dims: vol0.hdr?.dims,
     };
     const msg = {
       opts: opts,
       modelEntry: model,
       niftiHeader: hdr,
-      niftiImage: nv1.volumes[0].img,
+      niftiImage: vol0.img,
     };
-    chopWorker.postMessage(msg);
-    chopWorker.onmessage = (event) => {
+    worker.postMessage(msg);
+    worker.onmessage = (event) => {
       const cmd = event.data.cmd;
       if (cmd === "ui") {
         if (event.data.modalMessage !== "") {
-          chopWorker.terminate();
+          worker.terminate();
           chopWorker = undefined;
         }
         callbackUI(
@@ -127,7 +144,7 @@ async function main() {
         );
       }
       if (cmd === "img") {
-        chopWorker.terminate();
+        worker.terminate();
         chopWorker = undefined;
         callbackImg(event.data.img, event.data.opts, event.data.modelEntry);
       }
@@ -148,30 +165,36 @@ async function main() {
   };
   function doLoadImage() {
     saveBtn.disabled = true;
-    opacitySlider0.oninput();
+    updateBackgroundOpacity();
   }
-  async function fetchJSON(fnm) {
+  async function fetchJSON(fnm: string) {
     const response = await fetch(fnm);
     const js = await response.json();
     return js;
   }
-  async function callbackImg(img, opts, modelEntry) {
+  async function callbackImg(
+    img: ArrayBufferLike,
+    opts: { atlasSelectedColorTable: string },
+    modelEntry: { isScalar?: boolean; colormapPath?: string },
+  ) {
     closeAllOverlays();
     const overlayVolume = await nv1.volumes[0].clone();
     overlayVolume.zeroImage();
-    overlayVolume.hdr.scl_inter = 0;
-    overlayVolume.hdr.scl_slope = 1;
+    const hdr = overlayVolume.hdr;
+    if (!hdr) return;
+    hdr.scl_inter = 0;
+    hdr.scl_slope = 1;
     overlayVolume.img = new Uint8Array(img);
     const isScalar = modelEntry.isScalar === true;
     if (isScalar) {
-      overlayVolume.hdr.scl_slope = 1 / 255;
+      hdr.scl_slope = 1 / 255;
       overlayVolume.colormap = "viridis";
     } else {
       if (modelEntry.colormapPath) {
         const cmap = await fetchJSON(modelEntry.colormapPath);
         overlayVolume.setColormapLabel(cmap);
         // n.b. most models create indexed labels, but those without colormap mask scalar input
-        overlayVolume.hdr.intent_code = 1002; // NIFTI_INTENT_LABEL
+        hdr.intent_code = 1002; // NIFTI_INTENT_LABEL
       } else {
         let colormap = opts.atlasSelectedColorTable.toLowerCase();
         const cmaps = nv1.colormaps();
@@ -181,17 +204,18 @@ async function main() {
         overlayVolume.colormap = colormap;
       }
     }
-    overlayVolume.opacity = opacitySlider1.value / 255;
+    overlayVolume.opacity = Number(opacitySlider1.value) / 255;
     await nv1.addVolume(overlayVolume);
     saveBtn.disabled = false;
     createMeshBtn.disabled = false;
   }
   function callbackUI(message = "", progressFrac = -1, modalMessage = "") {
-    if (message !== "") {
+    const locationEl = document.getElementById("location");
+    if (message !== "" && locationEl) {
       console.log(message);
-      document.getElementById("location").innerHTML = message;
+      locationEl.innerHTML = message;
     }
-    if (isNaN(progressFrac)) {
+    if (Number.isNaN(progressFrac)) {
       //memory issue
       memstatus.style.color = "red";
       memstatus.innerHTML = "Memory Issue";
@@ -202,9 +226,11 @@ async function main() {
       window.alert(modalMessage);
     }
   }
-  function handleLocationChange(data) {
-    document.getElementById("location").innerHTML =
-      "&nbsp;&nbsp;" + data.string;
+  function handleLocationChange(data: { string: string }) {
+    const locationEl = document.getElementById("location");
+    if (locationEl) {
+      locationEl.innerHTML = "&nbsp;&nbsp;" + data.string;
+    }
   }
   const defaults = {
     backColor: [0.4, 0.4, 0.4, 1],
@@ -220,9 +246,9 @@ async function main() {
       remeshDialog.show();
     }
   };
-  qualitySelect.onchange = () => {
+  function updateQualityControls() {
     const isBetterQuality = Boolean(Number(qualitySelect.value));
-    const opacity = 1.0 - 0.5 * Number(isBetterQuality);
+    const opacity = String(1.0 - 0.5 * Number(isBetterQuality));
     largestCheck.disabled = isBetterQuality;
     largestClusterGroup.style.opacity = opacity;
     hollowGroup.style.opacity = opacity;
@@ -231,7 +257,8 @@ async function main() {
     bubbleGroup.style.opacity = opacity;
     closeMM.disabled = isBetterQuality;
     closeGroup.style.opacity = opacity;
-  };
+  }
+  qualitySelect.onchange = updateQualityControls;
   applyBtn.onclick = async () => {
     const isBetterQuality = Boolean(Number(qualitySelect.value));
     const startTime = performance.now();
@@ -243,24 +270,27 @@ async function main() {
   };
   async function applyFaster() {
     const niiBuffer = await nv1.saveImage({
+      filename: "",
+      isSaveDrawing: false,
       volumeByIndex: nv1.volumes.length - 1,
     });
-    const niiFile = new File([niiBuffer], "image.nii");
+    if (typeof niiBuffer === "boolean") return;
+    const niiFile = new File([niiBuffer as BlobPart], "image.nii");
     let processor = niimath.image(niiFile);
     loadingCircle.classList.remove("hidden");
     //mesh with specified isosurface
     let isoValue = 0.5;
-    if (nv1.volumes[nv1.volumes.length - 1].hdr.intent_code === 0) {
+    if (nv1.volumes[nv1.volumes.length - 1].hdr?.intent_code === 0) {
       isoValue = 240; //isScalar
     }
     //const largestCheckValue = largestCheck.checked
     const reduce = Math.min(Math.max(Number(shrinkPct.value) / 100, 0.01), 1);
     let hollowSz = Number(hollowSelect.value);
     let closeSz = Number(closeMM.value);
-    const pixDim = Math.min(
-      Math.min(nv1.volumes[0].hdr.pixDims[1], nv1.volumes[0].hdr.pixDims[2]),
-      nv1.volumes[0].hdr.pixDims[3],
-    );
+    const pixDims = nv1.volumes[0].hdr?.pixDims;
+    const pixDim = pixDims
+      ? Math.min(Math.min(pixDims[1], pixDims[2]), pixDims[3])
+      : 1;
     if (pixDim < 0.2 && (hollowSz !== 0 || closeSz !== 0)) {
       hollowSz *= pixDim;
       closeSz *= pixDim;
@@ -281,7 +311,10 @@ async function main() {
       r: reduce,
       b: bubbleCheck.checked ? 1 : 0,
     });
-    console.log("niimath operation", processor.commands);
+    console.log(
+      "niimath operation",
+      (processor as unknown as { commands: unknown }).commands,
+    );
     const retBlob = await processor.run("test.mz3");
     const arrayBuffer = await retBlob.arrayBuffer();
     loadingCircle.classList.add("hidden");
@@ -319,7 +352,7 @@ async function main() {
     const itkImage = nii2iwi(hdr, img, false);
     itkImage.size = itkImage.size.map(Number);
     let mesh;
-    if (nv1.volumes[nv1.volumes.length - 1].hdr.intent_code === 0) {
+    if (nv1.volumes[nv1.volumes.length - 1].hdr?.intent_code === 0) {
       ({ mesh } = await cuberille(itkImage, { isoSurfaceValue: 240 }));
     } else {
       // Binarize the image: set all values >= 1 to 1
@@ -391,11 +424,12 @@ async function main() {
       format = "stl";
     }
     const scale = 1 / Number(scaleSelect.value);
-    const pts = nv1.meshes[0].pts.slice();
+    const mesh0 = nv1.meshes[0];
+    if (!mesh0.pts || !mesh0.tris) return;
+    const pts = mesh0.pts.slice();
     for (let i = 0; i < pts.length; i++) pts[i] *= scale;
-    NVMeshUtilities.saveMesh(pts, nv1.meshes[0].tris, `mesh.${format}`, true);
+    NVMeshUtilities.saveMesh(pts, mesh0.tris, `mesh.${format}`, true);
   };
-  var chopWorker;
   const nv1 = new Niivue(defaults);
   nv1.attachToCanvas(gl1);
   nv1.opts.dragMode = nv1.dragModes.pan;
@@ -409,7 +443,7 @@ async function main() {
     option.value = inferenceModelsList[i].id.toString();
     modelSelect.appendChild(option);
   }
-  qualitySelect.onchange();
+  updateQualityControls();
   nv1.onImageLoaded = doLoadImage;
   nv1.onMeshLoaded = (volume) => {
     saveMeshBtn.disabled = false;
