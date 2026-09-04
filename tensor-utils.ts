@@ -2,10 +2,10 @@ import * as tf from "@tensorflow/tfjs";
 import { BWLabeler } from "./bwlabels.js";
 
 export async function addZeroPaddingTo3dTensor(
-  tensor3d,
-  rowPadArr = [1, 1],
-  colPadArr = [1, 1],
-  depthPadArr = [1, 1],
+  tensor3d: tf.Tensor3D,
+  rowPadArr: [number, number] = [1, 1],
+  colPadArr: [number, number] = [1, 1],
+  depthPadArr: [number, number] = [1, 1],
 ) {
   if (tensor3d.rank !== 3) {
     throw new Error("Tensor must be 3D");
@@ -13,7 +13,7 @@ export async function addZeroPaddingTo3dTensor(
   return tensor3d.pad([rowPadArr, colPadArr, depthPadArr]);
 }
 
-export async function applyMriThreshold(tensor, percentage) {
+export async function applyMriThreshold(tensor: tf.Tensor, percentage: number) {
   // Perform asynchronous operations outside of tf.tidy
   const maxTensor = tensor.max();
   const thresholdTensor = maxTensor.mul(percentage);
@@ -38,14 +38,14 @@ export async function applyMriThreshold(tensor, percentage) {
   // -- return denoisedMriData
 }
 
-export async function binarizeVolumeDataTensor(volumeDataTensor) {
+export async function binarizeVolumeDataTensor(volumeDataTensor: tf.Tensor) {
   const alpha = 0;
   // element-wise: (x > 0 ? 1 : alpha * x );  e.g. Tenosr [0, 0.9, 0.8, -3] => Tensor [0, 1, 1, 0]
   return volumeDataTensor.step(alpha);
 }
 
 async function calculateQuantiles(
-  tensor,
+  tensor: tf.Tensor,
   lowerQuantile = 0.01,
   upperQuantile = 0.99,
 ) {
@@ -53,7 +53,7 @@ async function calculateQuantiles(
   const flatTensor = tensor.flatten();
 
   // Convert the flattened tensor to an array to sort it
-  const flatArray = await flatTensor.array();
+  const flatArray = (await flatTensor.array()) as number[];
   flatArray.sort((a, b) => a - b); // Sort the array in ascending order
 
   // Convert the sorted array back to a tensor
@@ -82,25 +82,25 @@ async function calculateQuantiles(
 }
 
 export async function convByOutputChannelAndInputSlicing(
-  input,
-  filter,
-  biases,
-  stride,
-  pad,
-  dilationRate,
-  sliceSize,
+  input: tf.Tensor5D,
+  filter: tf.Tensor5D,
+  biases: tf.Tensor,
+  stride: number,
+  pad: number,
+  dilationRate: number,
+  sliceSize: number,
 ) {
   const inChannels = input.shape[4];
   const outChannels = filter.shape[4];
 
   // Create an empty array to hold the output channels
-  let outputChannels = null;
+  let outputChannels: tf.Tensor | null = null;
 
   // Slice the input tensor and process one output channel at a time
   for (let channel = 0; channel < outChannels; channel++) {
     const numSlices = Math.ceil(inChannels / sliceSize);
     const biasesSlice = biases.slice([channel], [1]);
-    let outputChannel = null;
+    let outputChannel: tf.Tensor | null = null;
 
     for (let i = 0; i < numSlices; i++) {
       const startChannel = i * sliceSize;
@@ -119,10 +119,10 @@ export async function convByOutputChannelAndInputSlicing(
           );
           // Perform the convolution for the current slice and output channel
           return tf.conv3d(
-            inputSlice,
-            filterSlice,
+            inputSlice as tf.Tensor5D,
+            filterSlice as tf.Tensor5D,
             stride,
-            pad,
+            pad as unknown as "same" | "valid",
             "NDHWC",
             dilationRate,
           );
@@ -131,7 +131,7 @@ export async function convByOutputChannelAndInputSlicing(
         if (outputChannel === null) {
           outputChannel = resultSlice;
         } else {
-          const updatedOutputChannel = outputChannel.add(resultSlice);
+          const updatedOutputChannel: tf.Tensor = outputChannel.add(resultSlice);
           outputChannel.dispose();
           resultSlice.dispose();
           outputChannel = updatedOutputChannel;
@@ -139,8 +139,11 @@ export async function convByOutputChannelAndInputSlicing(
       }
     }
 
+    if (outputChannel === null) {
+      continue;
+    }
     // Add the biases to the accumulated convolutions for this channel
-    const biasedOutputChannel = outputChannel.add(biasesSlice);
+    const biasedOutputChannel: tf.Tensor = outputChannel.add(biasesSlice);
     outputChannel.dispose();
     biasesSlice.dispose();
 
@@ -148,7 +151,7 @@ export async function convByOutputChannelAndInputSlicing(
     if (outputChannels == null) {
       outputChannels = biasedOutputChannel;
     } else {
-      const updatedOutputChannels = await tf.concat(
+      const updatedOutputChannels: tf.Tensor = tf.concat(
         [outputChannels, biasedOutputChannel],
         4,
       );
@@ -162,10 +165,10 @@ export async function convByOutputChannelAndInputSlicing(
 }
 
 export async function draw3dObjBoundingVolume(
-  unstackOutVolumeTensor,
-  opts,
-  modelEntry,
-  callbackImg,
+  unstackOutVolumeTensor: tf.Tensor[],
+  opts: unknown,
+  modelEntry: unknown,
+  callbackImg: (brainOut: number[], opts: unknown, modelEntry: unknown) => void,
 ) {
   const allOutputSlices3DCC = [];
 
@@ -199,14 +202,14 @@ export async function draw3dObjBoundingVolume(
   callbackImg(brainOut, opts, modelEntry);
 }
 // return first and last non-zero voxel in row (dim = 0), column (1) or slice (2) dimension
-async function firstLastNonZero(tensor3D, dim = 0) {
-  let mxs = [];
+async function firstLastNonZero(tensor3D: tf.Tensor3D, dim = 0) {
+  let mxs: number[] = [];
   if (dim === 0) {
-    mxs = await tensor3D.max(2).max(1).arraySync();
+    mxs = tensor3D.max(2).max(1).arraySync() as number[];
   } else if (dim === 1) {
-    mxs = await tensor3D.max(2).max(0).arraySync();
+    mxs = tensor3D.max(2).max(0).arraySync() as number[];
   } else {
-    mxs = await tensor3D.max(1).max(0).arraySync();
+    mxs = tensor3D.max(1).max(0).arraySync() as number[];
   }
   let mn = mxs.length;
   let mx = 0;
@@ -225,7 +228,7 @@ async function firstLastNonZero(tensor3D, dim = 0) {
   return [mn, mx];
 }
 
-export async function firstLastNonZero3D(tensor3D) {
+export async function firstLastNonZero3D(tensor3D: tf.Tensor3D) {
   const [row_min, row_max] = await firstLastNonZero(tensor3D, 0);
   const [col_min, col_max] = await firstLastNonZero(tensor3D, 1);
   const [depth_min, depth_max] = await firstLastNonZero(tensor3D, 2);
@@ -251,14 +254,15 @@ export async function firstLastNonZero3D(tensor3D) {
 */
 
 export async function generateBrainMask(
-  unstackOutVolumeTensor,
-  num_of_slices,
-  slice_height,
-  slice_width,
-  modelEntry,
-  opts,
-  callbackUI,
-  callbackImg,
+  unstackOutVolumeTensor: tf.Tensor[],
+  num_of_slices: number,
+  slice_height: number,
+  slice_width: number,
+  modelEntry: { preModelPostProcess?: boolean },
+  // biome-ignore lint/suspicious/noExplicitAny: free-form options bag from brainchop-parameters
+  opts: any,
+  callbackUI: (message?: string, progressFrac?: number, modal?: string) => void,
+  callbackImg: (brainOut: Int32Array, opts: unknown, modelEntry: unknown) => void,
   isFinalImage = true,
 ) {
   if (unstackOutVolumeTensor[0].dtype !== "int32") {
@@ -293,16 +297,16 @@ export async function generateBrainMask(
 }
 
 export async function generateOutputSlicesV2(
-  img,
-  OutVolumeTensorShape,
-  OutVolumeTensorType,
-  num_of_slices,
-  numSegClasses,
-  slice_height,
-  slice_width,
-  modelEntry,
-  opts,
-  niftiImage,
+  img: Uint8Array | Int32Array | Float32Array,
+  OutVolumeTensorShape: number[],
+  OutVolumeTensorType: string,
+  num_of_slices: number,
+  numSegClasses: number,
+  slice_height: number,
+  slice_width: number,
+  modelEntry: { type?: string },
+  opts: { isPostProcessEnable?: boolean },
+  niftiImage: ArrayLike<number>,
 ) {
   // Convert all slices into 1 Dim array
   if (opts.isPostProcessEnable) {
@@ -352,9 +356,9 @@ export async function generateOutputSlicesV2(
 }
 
 export async function getAllSlicesDataAsTF3D(
-  num_of_slices,
-  niftiHeader,
-  niftiImage,
+  num_of_slices: number,
+  niftiHeader: { dims: number[]; datatypeCode: number },
+  niftiImage: ArrayBufferLike,
 ) {
   // Get nifti dimensions
   const cols = niftiHeader.dims[1]; // Slice width
@@ -407,11 +411,11 @@ export async function getAllSlicesDataAsTF3D(
   return allSlices_3D;
 }
 
-export async function getModelNumLayers(modelObj) {
+export async function getModelNumLayers(modelObj: tf.LayersModel) {
   return modelObj.layers.length;
 }
 
-export async function getModelNumParameters(modelObj) {
+export async function getModelNumParameters(modelObj: tf.LayersModel) {
   let numParameters = 0;
   for (let layerIdx = 0; layerIdx < modelObj.layers.length; layerIdx++) {
     numParameters += modelObj.layers[layerIdx].countParams();
@@ -419,7 +423,10 @@ export async function getModelNumParameters(modelObj) {
   return numParameters;
 }
 
-export async function isModelChnlLast(modelObj) {
+export async function isModelChnlLast(
+  // biome-ignore lint/suspicious/noExplicitAny: layersByDepth/dataFormat are not on the public tfjs type
+  modelObj: any,
+) {
   for (let layerIdx = 0; layerIdx < modelObj.layers.length; layerIdx++) {
     if (modelObj.layersByDepth[layerIdx][0].dataFormat) {
       return modelObj.layersByDepth[layerIdx][0].dataFormat === "channelsLast";
@@ -427,11 +434,11 @@ export async function isModelChnlLast(modelObj) {
   }
 }
 
-export async function load_model(modelUrl) {
+export async function load_model(modelUrl: string) {
   return await tf.loadLayersModel(modelUrl);
 }
 
-export async function minMaxNormalizeVolumeData(volumeData) {
+export async function minMaxNormalizeVolumeData(volumeData: tf.Tensor) {
   // Normalize the data to the range 0 - 1 using min-max scaling
   const volumeData_Max = volumeData.max();
   const volumeData_Min = volumeData.min();
@@ -441,7 +448,11 @@ export async function minMaxNormalizeVolumeData(volumeData) {
   return normalizedSlices_3d;
 }
 
-function processTensorInChunks(inputTensor, filterWeights, chunkSize) {
+function processTensorInChunks(
+  inputTensor: tf.Tensor5D,
+  filterWeights: tf.Tensor5D,
+  chunkSize: number,
+) {
   // Assuming inputTensor's shape: [batch, depth, height, width, inChannels]
   // and filterWeights's shape: [filterDepth, filterHeight, filterWidth, inChannels, outChannels]
   const stride = 1;
@@ -450,7 +461,7 @@ function processTensorInChunks(inputTensor, filterWeights, chunkSize) {
   const inChannels = inputTensor.shape[4];
   const numSlices = Math.ceil(inChannels / chunkSize);
 
-  let accumulatedResult = null;
+  let accumulatedResult: tf.Tensor | null = null;
   for (let i = 0; i < numSlices; i++) {
     const startChannel = i * chunkSize;
     const endChannel = Math.min((i + 1) * chunkSize, inChannels);
@@ -472,10 +483,10 @@ function processTensorInChunks(inputTensor, filterWeights, chunkSize) {
     });
 
     const resultSlice = tf.conv3d(
-      inputSlice,
-      filterSlice,
+      inputSlice as tf.Tensor5D,
+      filterSlice as tf.Tensor5D,
       stride,
-      pad,
+      pad as unknown as "same" | "valid",
       "NDHWC",
       dilationRate,
     );
@@ -491,7 +502,8 @@ function processTensorInChunks(inputTensor, filterWeights, chunkSize) {
       accumulatedResult = squeezedResultSlice;
     } else {
       // Accumulate the result by adding the new result slice to it
-      const newAccumulatedResult = accumulatedResult.add(squeezedResultSlice);
+      const newAccumulatedResult: tf.Tensor =
+        accumulatedResult.add(squeezedResultSlice);
 
       // Dispose of the previous accumulatedResult and squeezedResultSlice
       accumulatedResult.dispose();
@@ -512,7 +524,7 @@ function processTensorInChunks(inputTensor, filterWeights, chunkSize) {
 }
 
 export async function quantileNormalizeVolumeData(
-  tensor,
+  tensor: tf.Tensor,
   lowerQuantile = 0.05,
   upperQuantile = 0.95,
 ) {
@@ -539,7 +551,7 @@ export async function quantileNormalizeVolumeData(
 }
 
 export async function removeZeroPaddingFrom3dTensor(
-  tensor3d,
+  tensor3d: tf.Tensor3D,
   rowPad = 1,
   colPad = 1,
   depthPad = 1,
@@ -555,12 +567,12 @@ export async function removeZeroPaddingFrom3dTensor(
 }
 
 export async function resizeWithZeroPadding(
-  croppedTensor3d,
-  newDepth,
-  newHeight,
-  newWidth,
-  refVoxel,
-  boundVolSizeArr,
+  croppedTensor3d: tf.Tensor3D,
+  newDepth: number,
+  newHeight: number,
+  newWidth: number,
+  refVoxel: number[],
+  boundVolSizeArr: number[],
 ) {
   const row_pad_befor = refVoxel[0];
   const col_pad_befor = refVoxel[1];
@@ -584,7 +596,22 @@ export async function resizeWithZeroPadding(
 }
 
 export class SequentialConvLayer {
-  constructor(model, chunkSize, isChannelLast, callbackUI, isWebWorker = true) {
+  // biome-ignore lint/suspicious/noExplicitAny: tfjs LayersModel does not expose outputLayers[].kernel
+  model: any;
+  outChannels: number;
+  chunkSize: number;
+  isChannelLast: boolean;
+  callbackUI: (message?: string, progressFrac?: number, modal?: string) => void;
+  isWebWorker: boolean;
+
+  constructor(
+    // biome-ignore lint/suspicious/noExplicitAny: see field note
+    model: any,
+    chunkSize: number,
+    isChannelLast: boolean,
+    callbackUI: (message?: string, progressFrac?: number, modal?: string) => void,
+    isWebWorker = true,
+  ) {
     this.model = model;
     this.outChannels = model.outputLayers[0].kernel.shape[4];
     this.chunkSize = chunkSize;
@@ -601,7 +628,7 @@ export class SequentialConvLayer {
    * @return {outC}
    */
 
-  async apply(inputTensor) {
+  async apply(inputTensor: tf.Tensor) {
     const oldDeleteTextureThreshold = tf.ENV.get(
       "WEBGL_DELETE_TEXTURE_THRESHOLD",
     );
@@ -613,8 +640,8 @@ export class SequentialConvLayer {
     const startTime = performance.now();
 
     const convLayer = this.model.layers[this.model.layers.length - 1];
-    const weights = convLayer.getWeights()[0]; //
-    const biases = convLayer.getWeights()[1];
+    const weights: tf.Tensor = convLayer.getWeights()[0]; //
+    const biases: tf.Tensor = convLayer.getWeights()[1];
     const outputShape = this.isChannelLast
       ? inputTensor.shape.slice(1, -1)
       : inputTensor.shape.slice(2);
@@ -646,11 +673,13 @@ export class SequentialConvLayer {
         // -- e.g. filterWeights.shape [ 1, 1, 1, 5, 1 ]
         const filterBiases = biases.slice([chIdx], [1]);
         // -- e.g. filterBiases.shape [1] -> Tensor  [-0.7850812]
-        const outA = processTensorInChunks(
-          inputTensor,
-          filterWeights,
+        // numSlices >= 1, so processTensorInChunks never returns null here.
+        const chunked = processTensorInChunks(
+          inputTensor as tf.Tensor5D,
+          filterWeights as tf.Tensor5D,
           Math.min(this.chunkSize, this.outChannels),
-        ).add(filterBiases);
+        ) as tf.Tensor;
+        const outA = chunked.add(filterBiases);
         const greater = tf.greater(outA, outB);
         const newoutB = tf.where(greater, outA, outB);
         const newoutC = tf.where(greater, tf.fill(outC.shape, chIdx), outC);

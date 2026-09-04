@@ -284,12 +284,13 @@ export class BWLabeler {
   // https://github.com/seung-lab/connected-components-3d
   bwlabel(
     img: ArrayLike<number>,
-    dim: number[],
+    dimArr: ArrayLike<number>,
     conn = 26,
     binarize = false,
     onlyLargestClusterPerClass = false,
   ): [number, Uint32Array] {
     const start = Date.now();
+    const dim = Array.from(dimArr);
     const nvox = dim[0] * dim[1] * dim[2];
     const bw = new Uint32Array(nvox).fill(0);
     if (![6, 18, 26].includes(conn)) {
