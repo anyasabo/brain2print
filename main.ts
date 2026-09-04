@@ -11,7 +11,7 @@ import {
 } from "@itk-wasm/mesh-filters";
 import { iwm2meshCore, nii2iwi } from "@niivue/cbor-loader";
 import { Niimath } from "@niivue/niimath";
-import { NiiVue, nii2volume } from "@niivue/niivue";
+import { NiiVue, nii2volume, SHOW_RENDER, SLICE_TYPE } from "@niivue/niivue";
 import { conform } from "@niivue/nv-ext-image-processing";
 import { brainChopOpts, inferenceModelsList } from "./brainchop-parameters.js";
 import { isChrome, localSystemDetails } from "./brainchop-telemetry.js";
@@ -265,6 +265,10 @@ async function main() {
     // texture-size limit on the multiplanar tiling here. Use the WebGL2 backend,
     // which is what 0.69 used and what the tfjs segmentation already runs on.
     backend: "webgl2" as const,
+    // Show the multiplanar view with the 3D render, replacing the old
+    // multiplanarForceRender option that v1 removed.
+    sliceType: SLICE_TYPE.MULTIPLANAR,
+    showRender: SHOW_RENDER.ALWAYS,
   };
   createMeshBtn.onclick = () => {
     if (nv1.meshes.length > 0) nv1.removeMesh(0);
@@ -465,10 +469,17 @@ async function main() {
   // niivue v1 moved conform() out of the core into an extension.
   extCtx = nv1.createExtensionContext();
   extCtx.registerVolumeTransform(conform);
-  nv1.attachToCanvas(gl1);
+  // v1: attachToCanvas is async. Await it before loading so the GL context is
+  // ready and the scene draws on load (otherwise the canvas stays black until an
+  // interaction forces a redraw).
+  await nv1.attachToCanvas(gl1);
   nv1.setDragMode("pan");
   nv1.crosshairGap = 11;
   await nv1.loadVolumes([{ url: "./t1_crop.nii.gz" }]);
+  // v1 sizes the canvas at attach time; re-measure once layout has settled so
+  // the scene draws at the correct size on load (not just after an interaction).
+  nv1.resize();
+  nv1.drawScene();
   for (let i = 0; i < inferenceModelsList.length; i++) {
     const option = document.createElement("option");
     option.text = inferenceModelsList[i].modelName;

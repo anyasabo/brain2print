@@ -29,6 +29,10 @@ footer {
 canvas {
   position: absolute;
   cursor: crosshair;
+  /* niivue v1 sizes the drawing buffer from the canvas CSS box (0.69 set it
+     internally). Without this the canvas stays at the intrinsic 300x150. */
+  width: 100%;
+  height: 100%;
 }
 canvas:focus {
   outline: 0px;
