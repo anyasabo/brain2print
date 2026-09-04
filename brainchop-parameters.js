@@ -1,4 +1,4 @@
-export {inferenceModelsList, brainChopOpts }
+export { brainChopOpts, inferenceModelsList };
 
 const brainChopOpts = {
   // General settings for input shape [batchSize, batch_D, batch_H, batch_W, numOfChan]
@@ -16,20 +16,20 @@ const brainChopOpts = {
   browserArrayBufferMaxZDim: 30, // This value depends on Memory available
   telemetryFlag: false, // Ethical and transparent collection of browser usage while adhering to security and privacy standards
   chartXaxisStepPercent: 10, // percent from total labels on Xaxis
-  uiSampleName: 'BC_UI_Sample', // Sample name used by interface
-  atlasSelectedColorTable: 'Fire' // Select from ["Hot-and-Cold", "Fire", "Grayscale", "Gold", "Spectrum"]
-}
+  uiSampleName: "BC_UI_Sample", // Sample name used by interface
+  atlasSelectedColorTable: "Fire", // Select from ["Hot-and-Cold", "Fire", "Grayscale", "Gold", "Spectrum"]
+};
 
 // Inference Models, the ids must start from 1 in sequence
 const inferenceModelsList = [
   {
     id: 1,
-    type: 'Segmentation',
-    path: '/models/model5_gw_ae/model.json',
-    modelName: '\u26A1 Tissue GWM (light)',
-    labelsPath: './models/model5_gw_ae/labels.json',
-    colorsPath: './models/model5_gw_ae/colorLUT.json',
-    colormapPath: './models/model5_gw_ae/colormap3.json',
+    type: "Segmentation",
+    path: "/models/model5_gw_ae/model.json",
+    modelName: "\u26A1 Tissue GWM (light)",
+    labelsPath: "./models/model5_gw_ae/labels.json",
+    colorsPath: "./models/model5_gw_ae/colorLUT.json",
+    colormapPath: "./models/model5_gw_ae/colormap3.json",
     preModelId: null, // Model run first e.g.  crop the brain   { null, 1, 2, ..  }
     preModelPostProcess: false, // If true, perform postprocessing to remove noisy regions after preModel inference generate output.
     isBatchOverlapEnable: false, // create extra overlap batches for inference
@@ -45,16 +45,16 @@ const inferenceModelsList = [
     warning: null, // Warning message to show when select the model.
     inferenceDelay: 100, // Delay in ms time while looping layers applying.
     description:
-      'Gray and white matter segmentation model. Operates on full T1 image in a single pass, but uses only 5 filters per layer. Can work on integrated graphics cards but is barely large enough to provide good accuracy. Still more accurate than the subvolume model.'
+      "Gray and white matter segmentation model. Operates on full T1 image in a single pass, but uses only 5 filters per layer. Can work on integrated graphics cards but is barely large enough to provide good accuracy. Still more accurate than the subvolume model.",
   },
   {
     id: 2,
-    type: 'Segmentation',
-    path: '/models/model20chan3cls/model.json',
-    modelName: '\u{1F52A} Tissue GWM (High Acc)',
-    labelsPath: './models/model20chan3cls/labels.json',
-    colorsPath: './models/model20chan3cls/colorLUT.json',
-    colormapPath: './models/model20chan3cls/colormap.json',
+    type: "Segmentation",
+    path: "/models/model20chan3cls/model.json",
+    modelName: "\u{1F52A} Tissue GWM (High Acc)",
+    labelsPath: "./models/model20chan3cls/labels.json",
+    colorsPath: "./models/model20chan3cls/colorLUT.json",
+    colormapPath: "./models/model20chan3cls/colormap.json",
     preModelId: null, // Model run first e.g.  crop the brain   { null, 1, 2, ..  }
     preModelPostProcess: false, // If true, perform postprocessing to remove noisy regions after preModel inference generate output.
     isBatchOverlapEnable: false, // create extra overlap batches for inference
@@ -71,16 +71,16 @@ const inferenceModelsList = [
       "This model may need dedicated graphics card.  For more info please check with Browser Resources <i class='fa fa-cogs'></i>.",
     inferenceDelay: 100, // Delay in ms time while looping layers applying.
     description:
-      'Gray and white matter segmentation model. Operates on full T1 image in a single pass but needs a dedicated graphics card to operate. Provides the best accuracy with hard cropping for better speed'
+      "Gray and white matter segmentation model. Operates on full T1 image in a single pass but needs a dedicated graphics card to operate. Provides the best accuracy with hard cropping for better speed",
   },
   {
     id: 3,
-    type: 'Segmentation',
-    path: '/models/model20chan3cls/model.json',
-    modelName: '\u{1F52A} Tissue GWM (High Acc, Low Mem)',
-    labelsPath: './models/model20chan3cls/labels.json',
-    colorsPath: './models/model20chan3cls/colorLUT.json',
-    colormapPath: './models/model20chan3cls/colormap.json',
+    type: "Segmentation",
+    path: "/models/model20chan3cls/model.json",
+    modelName: "\u{1F52A} Tissue GWM (High Acc, Low Mem)",
+    labelsPath: "./models/model20chan3cls/labels.json",
+    colorsPath: "./models/model20chan3cls/colorLUT.json",
+    colormapPath: "./models/model20chan3cls/colormap.json",
     preModelId: null, // Model run first e.g.  crop the brain   { null, 1, 2, ..  }
     preModelPostProcess: false, // If true, perform postprocessing to remove noisy regions after preModel inference generate output.
     isBatchOverlapEnable: false, // create extra overlap batches for inference
@@ -97,16 +97,16 @@ const inferenceModelsList = [
       "This model may need dedicated graphics card.  For more info please check with Browser Resources <i class='fa fa-cogs'></i>.",
     inferenceDelay: 100, // Delay in ms time while looping layers applying.
     description:
-      'Gray and white matter segmentation model. Operates on full T1 image in a single pass but needs a dedicated graphics card to operate. Provides high accuracy and fit low memory available but slower'
+      "Gray and white matter segmentation model. Operates on full T1 image in a single pass but needs a dedicated graphics card to operate. Provides high accuracy and fit low memory available but slower",
   },
   {
     id: 4,
-    type: 'Atlas',
-    path: '/models/model30chan18cls/model.json',
-    modelName: '\u{1FA93} Subcortical + GWM (High Mem, Fast)',
-    labelsPath: './models/model30chan18cls/labels.json',
-    colorsPath: './models/model30chan18cls/colorLUT.json',
-    colormapPath: './models/model30chan18cls/colormap.json',
+    type: "Atlas",
+    path: "/models/model30chan18cls/model.json",
+    modelName: "\u{1FA93} Subcortical + GWM (High Mem, Fast)",
+    labelsPath: "./models/model30chan18cls/labels.json",
+    colorsPath: "./models/model30chan18cls/colorLUT.json",
+    colormapPath: "./models/model30chan18cls/colormap.json",
     preModelId: null, // Model run first e.g.  crop the brain  { null, 1, 2, ..  }
     preModelPostProcess: false, // If true, perform postprocessing to remove noisy regions after preModel inference generate output.
     isBatchOverlapEnable: false, // create extra overlap batches for inference
@@ -123,16 +123,16 @@ const inferenceModelsList = [
       "This model may need dedicated graphics card.  For more info please check with Browser Resources <i class='fa fa-cogs'></i>.", // Warning message to show when select the model.
     inferenceDelay: 100, // Delay in ms time while looping layers applying.
     description:
-      'Parcellation of the brain into 17 regions: gray and white matter plus subcortical areas. This is a robust model able to handle range of data quality, including varying saturation, and even clinical scans. It may work on infant brains, but your mileage may vary.'
+      "Parcellation of the brain into 17 regions: gray and white matter plus subcortical areas. This is a robust model able to handle range of data quality, including varying saturation, and even clinical scans. It may work on infant brains, but your mileage may vary.",
   },
   {
     id: 5,
-    type: 'Atlas',
-    path: '/models/model30chan18cls/model.json',
-    modelName: '\u{1FA93} Subcortical + GWM (Low Mem, Slow)',
-    labelsPath: './models/model30chan18cls/labels.json',
-    colorsPath: './models/model30chan18cls/colorLUT.json',
-    colormapPath: './models/model30chan18cls/colormap.json',
+    type: "Atlas",
+    path: "/models/model30chan18cls/model.json",
+    modelName: "\u{1FA93} Subcortical + GWM (Low Mem, Slow)",
+    labelsPath: "./models/model30chan18cls/labels.json",
+    colorsPath: "./models/model30chan18cls/colorLUT.json",
+    colormapPath: "./models/model30chan18cls/colormap.json",
     preModelId: null, // Model run first e.g.  crop the brain  { null, 1, 2, ..  }
     preModelPostProcess: false, // If true, perform postprocessing to remove noisy regions after preModel inference generate output.
     isBatchOverlapEnable: false, // create extra overlap batches for inference
@@ -149,16 +149,16 @@ const inferenceModelsList = [
       "This model may need dedicated graphics card.  For more info please check with Browser Resources <i class='fa fa-cogs'></i>.", // Warning message to show when select the model.
     inferenceDelay: 100, // Delay in ms time while looping layers applying.
     description:
-      'Parcellation of the brain into 17 regions: gray and white matter plus subcortical areas. This is a robust model able to handle range of data quality, including varying saturation, and even clinical scans. It may work on infant brains, but your mileage may vary.'
+      "Parcellation of the brain into 17 regions: gray and white matter plus subcortical areas. This is a robust model able to handle range of data quality, including varying saturation, and even clinical scans. It may work on infant brains, but your mileage may vary.",
   },
   {
     id: 6,
-    type: 'Atlas',
-    path: '/models/model18cls/model.json',
-    modelName: '\u{1FA93} Subcortical + GWM (Low Mem, Faster)',
-    labelsPath: './models/model18cls/labels.json',
-    colorsPath: './models/model18cls/colorLUT.json',
-    colormapPath: './models/model18cls/colormap.json',
+    type: "Atlas",
+    path: "/models/model18cls/model.json",
+    modelName: "\u{1FA93} Subcortical + GWM (Low Mem, Faster)",
+    labelsPath: "./models/model18cls/labels.json",
+    colorsPath: "./models/model18cls/colorLUT.json",
+    colormapPath: "./models/model18cls/colormap.json",
     preModelId: null, // model run first e.g.  Brain_Extraction  { null, 1, 2, ..  }
     preModelPostProcess: false, // If true, perform postprocessing to remove noisy regions after preModel inference generate output.
     isBatchOverlapEnable: false, // create extra overlap batches for inference
@@ -175,16 +175,16 @@ const inferenceModelsList = [
       "This model may need dedicated graphics card.  For more info please check with Browser Resources <i class='fa fa-cogs'></i>.", // Warning message to show when select the model.
     inferenceDelay: 100, // Delay in ms time while looping layers applying.
     description:
-      'Parcellation of the brain into 17 regions: gray and white matter plus subcortical areas. This is a robust model able to handle range of data quality, including varying saturation, and even clinical scans. It may work on infant brains, but your mileage may vary.'
+      "Parcellation of the brain into 17 regions: gray and white matter plus subcortical areas. This is a robust model able to handle range of data quality, including varying saturation, and even clinical scans. It may work on infant brains, but your mileage may vary.",
   },
   {
     id: 7,
-    type: 'Atlas',
-    path: '/models/model30chan18cls/model.json',
-    modelName: '\u{1F52A}\u{1FA93} Subcortical + GWM (Failsafe, Less Acc)',
-    labelsPath: './models/model30chan18cls/labels.json',
-    colorsPath: './models/model30chan18cls/colorLUT.json',
-    colormapPath: './models/model30chan18cls/colormap.json',
+    type: "Atlas",
+    path: "/models/model30chan18cls/model.json",
+    modelName: "\u{1F52A}\u{1FA93} Subcortical + GWM (Failsafe, Less Acc)",
+    labelsPath: "./models/model30chan18cls/labels.json",
+    colorsPath: "./models/model30chan18cls/colorLUT.json",
+    colormapPath: "./models/model30chan18cls/colormap.json",
     preModelId: 1, // model run first e.g.  Brain_Extraction  { null, 1, 2, ..  }
     preModelPostProcess: false, // If true, perform postprocessing to remove noisy regions after preModel inference generate output.
     isBatchOverlapEnable: false, // create extra overlap batches for inference
@@ -201,16 +201,16 @@ const inferenceModelsList = [
       "This model may need dedicated graphics card.  For more info please check with Browser Resources <i class='fa fa-cogs'></i>.", // Warning message to show when select the model.
     inferenceDelay: 100, // Delay in ms time while looping layers applying.
     description:
-      'Parcellation of the brain into 17 regions: gray and white matter plus subcortical areas. This is not a robust model, it may work on low data quality, including varying saturation, and even clinical scans. It may work also on infant brains, but your mileage may vary.'
+      "Parcellation of the brain into 17 regions: gray and white matter plus subcortical areas. This is not a robust model, it may work on low data quality, including varying saturation, and even clinical scans. It may work also on infant brains, but your mileage may vary.",
   },
   {
     id: 8,
-    type: 'Atlas',
-    path: '/models/model30chan50cls/model.json',
-    modelName: '\u{1F52A} Aparc+Aseg 50 (High Mem, Fast)',
-    labelsPath: './models/model30chan50cls/labels.json',
-    colorsPath: './models/model30chan50cls/colorLUT.json',
-    colormapPath: './models/model30chan50cls/colormap.json',
+    type: "Atlas",
+    path: "/models/model30chan50cls/model.json",
+    modelName: "\u{1F52A} Aparc+Aseg 50 (High Mem, Fast)",
+    labelsPath: "./models/model30chan50cls/labels.json",
+    colorsPath: "./models/model30chan50cls/colorLUT.json",
+    colormapPath: "./models/model30chan50cls/colormap.json",
     preModelId: 1, // Model run first e.g.  crop the brain  { null, 1, 2, ..  }
     preModelPostProcess: false, // If true, perform postprocessing to remove noisy regions after preModel inference generate output.
     isBatchOverlapEnable: false, // create extra overlap batches for inference
@@ -227,16 +227,16 @@ const inferenceModelsList = [
       "This model may need dedicated graphics card.  For more info please check with Browser Resources <i class='fa fa-cogs'></i>.", // Warning message to show when select the model.
     inferenceDelay: 100, // Delay in ms time while looping layers applying.
     description:
-      'This is a 50-class model, that segments the brain into the Aparc+Aseg Freesurfer Atlas but one where cortical homologues are merged into a single class.'
+      "This is a 50-class model, that segments the brain into the Aparc+Aseg Freesurfer Atlas but one where cortical homologues are merged into a single class.",
   },
   {
     id: 9,
-    type: 'Atlas',
-    path: '/models/model30chan50cls/model.json',
-    modelName: '\u{1F52A} Aparc+Aseg 50 (Low Mem, Slow)',
-    labelsPath: './models/model30chan50cls/labels.json',
-    colorsPath: './models/model30chan50cls/colorLUT.json',
-    colormapPath: './models/model30chan50cls/colormap.json',
+    type: "Atlas",
+    path: "/models/model30chan50cls/model.json",
+    modelName: "\u{1F52A} Aparc+Aseg 50 (Low Mem, Slow)",
+    labelsPath: "./models/model30chan50cls/labels.json",
+    colorsPath: "./models/model30chan50cls/colorLUT.json",
+    colormapPath: "./models/model30chan50cls/colormap.json",
     preModelId: 1, // Model run first e.g.  crop the brain  { null, 1, 2, ..  }
     preModelPostProcess: false, // If true, perform postprocessing to remove noisy regions after preModel inference generate output.
     isBatchOverlapEnable: false, // create extra overlap batches for inference
@@ -253,14 +253,14 @@ const inferenceModelsList = [
       "This model may need dedicated graphics card.  For more info please check with Browser Resources <i class='fa fa-cogs'></i>.", // Warning message to show when select the model.
     inferenceDelay: 100, // Delay in ms time while looping layers applying.
     description:
-      'This is a 50-class model, that segments the brain into the Aparc+Aseg Freesurfer Atlas but one where cortical homologues are merged into a single class. The model use sequential convolution for inference to overcome browser memory limitations but leads to longer computation time.'
+      "This is a 50-class model, that segments the brain into the Aparc+Aseg Freesurfer Atlas but one where cortical homologues are merged into a single class. The model use sequential convolution for inference to overcome browser memory limitations but leads to longer computation time.",
   },
   // './models/model5_gw_ae/colorLUT.json',
   {
     id: 10,
-    type: 'Brain_Extraction',
-    path: '/models/model5_gw_ae/model.json',
-    modelName: '\u26A1 Extract the Brain (FAST)',
+    type: "Brain_Extraction",
+    path: "/models/model5_gw_ae/model.json",
+    modelName: "\u26A1 Extract the Brain (FAST)",
     labelsPath: null,
     colorsPath: null,
     preModelId: null, // Model run first e.g.  crop the brain  { null, 1, 2, ..  }
@@ -278,13 +278,13 @@ const inferenceModelsList = [
     warning: null, // Warning message to show when select the model.
     inferenceDelay: 100, // Delay in ms time while looping layers applying.
     description:
-      'Extract the brain fast model operates on full T1 image in a single pass, but uses only 5 filters per layer. Can work on integrated graphics cards but is barely large enough to provide good accuracy. Still more accurate than the failsafe version.'
+      "Extract the brain fast model operates on full T1 image in a single pass, but uses only 5 filters per layer. Can work on integrated graphics cards but is barely large enough to provide good accuracy. Still more accurate than the failsafe version.",
   },
   {
     id: 11,
-    type: 'Brain_Extraction',
-    path: '/models/model11_gw_ae/model.json',
-    modelName: '\u{1F52A} Extract the Brain (High Acc, Slow)',
+    type: "Brain_Extraction",
+    path: "/models/model11_gw_ae/model.json",
+    modelName: "\u{1F52A} Extract the Brain (High Acc, Slow)",
     labelsPath: null,
     colorsPath: null,
     preModelId: null, // Model run first e.g.  crop the brain  { null, 1, 2, ..  }
@@ -303,16 +303,16 @@ const inferenceModelsList = [
       "This model may need dedicated graphics card.  For more info please check with Browser Resources <i class='fa fa-cogs'></i>.",
     inferenceDelay: 100, // Delay in ms time while looping layers applying.
     description:
-      'Extract the brain high accuracy model operates on full T1 image in a single pass, but uses only 11 filters per layer. Can work on dedicated graphics cards. Still more accurate than the fast version.'
+      "Extract the brain high accuracy model operates on full T1 image in a single pass, but uses only 11 filters per layer. Can work on dedicated graphics cards. Still more accurate than the fast version.",
   },
   {
     id: 12,
-    type: 'Brain_Masking',
-    path: '/models/model5_gw_ae/model.json',
-    modelName: '\u26A1 Brain Mask (FAST)',
+    type: "Brain_Masking",
+    path: "/models/model5_gw_ae/model.json",
+    modelName: "\u26A1 Brain Mask (FAST)",
     labelsPath: null,
     colorsPath: null,
-    colormapPath: './models/model5_gw_ae/colormap.json',
+    colormapPath: "./models/model5_gw_ae/colormap.json",
     preModelId: null, // Model run first e.g.  crop the brain  { null, 1, 2, ..  }
     preModelPostProcess: false, // If true, perform postprocessing to remove noisy regions after preModel inference generate output.
     isBatchOverlapEnable: false, // create extra overlap batches for inference
@@ -328,13 +328,13 @@ const inferenceModelsList = [
     warning: null, // Warning message to show when select the model.
     inferenceDelay: 100, // Delay in ms time while looping layers applying.
     description:
-      'This fast masking model operates on full T1 image in a single pass, but uses only 5 filters per layer. Can work on integrated graphics cards but is barely large enough to provide good accuracy. Still more accurate than failsafe version.'
+      "This fast masking model operates on full T1 image in a single pass, but uses only 5 filters per layer. Can work on integrated graphics cards but is barely large enough to provide good accuracy. Still more accurate than failsafe version.",
   },
   {
     id: 13,
-    type: 'Brain_Masking',
-    path: '/models/model11_gw_ae/model.json',
-    modelName: '\u{1F52A} Brain Mask (High Acc, Low Mem)',
+    type: "Brain_Masking",
+    path: "/models/model11_gw_ae/model.json",
+    modelName: "\u{1F52A} Brain Mask (High Acc, Low Mem)",
     labelsPath: null,
     colorsPath: null,
     preModelId: null, // Model run first e.g.  crop the brain  { null, 1, 2, ..  }
@@ -353,16 +353,16 @@ const inferenceModelsList = [
       "This model may need dedicated graphics card.  For more info please check with Browser Resources <i class='fa fa-cogs'></i>.",
     inferenceDelay: 100, // Delay in ms time while looping layers applying.
     description:
-      'This masking model operates on full T1 image in a single pass, but uses 11 filters per layer. Can work on dedicated graphics cards. Still more accurate than fast version.'
+      "This masking model operates on full T1 image in a single pass, but uses 11 filters per layer. Can work on dedicated graphics cards. Still more accurate than fast version.",
   },
   {
     id: 14,
-    type: 'Atlas',
-    path: '/models/model21_104class/model.json',
-    modelName: '\u{1F52A} Aparc+Aseg 104 (High Mem, Fast)',
-    labelsPath: './models/model21_104class/labels.json',
-    colorsPath: './models/model21_104class/colorLUT.json',
-    colormapPath: './models/model21_104class/colormap.json',
+    type: "Atlas",
+    path: "/models/model21_104class/model.json",
+    modelName: "\u{1F52A} Aparc+Aseg 104 (High Mem, Fast)",
+    labelsPath: "./models/model21_104class/labels.json",
+    colorsPath: "./models/model21_104class/colorLUT.json",
+    colormapPath: "./models/model21_104class/colormap.json",
     preModelId: 1, // model run first e.g.  Brain_Extraction  { null, 1, 2, ..  }
     preModelPostProcess: false, // If true, perform postprocessing to remove noisy regions after preModel inference generate output.
     isBatchOverlapEnable: false, // create extra overlap batches for inference
@@ -379,16 +379,16 @@ const inferenceModelsList = [
       "This model may need dedicated graphics card.  For more info please check with Browser Resources <i class='fa fa-cogs'></i>.", // Warning message to show when select the model.
     inferenceDelay: 100, // Delay in ms time while looping layers applying.
     description:
-      'FreeSurfer aparc+aseg atlas 104 parcellate brain areas into 104 regions. It contains a combination of the Desikan-Killiany atlas for cortical area and also segmentation of subcortical regions.'
+      "FreeSurfer aparc+aseg atlas 104 parcellate brain areas into 104 regions. It contains a combination of the Desikan-Killiany atlas for cortical area and also segmentation of subcortical regions.",
   },
   {
     id: 15,
-    type: 'Atlas',
-    path: '/models/model21_104class/model.json',
-    modelName: '\u{1F52A} Aparc+Aseg 104 (Low Mem, Slow)',
-    labelsPath: './models/model21_104class/labels.json',
-    colorsPath: './models/model21_104class/colorLUT.json',
-    colormapPath: './models/model21_104class/colormap.json',
+    type: "Atlas",
+    path: "/models/model21_104class/model.json",
+    modelName: "\u{1F52A} Aparc+Aseg 104 (Low Mem, Slow)",
+    labelsPath: "./models/model21_104class/labels.json",
+    colorsPath: "./models/model21_104class/colorLUT.json",
+    colormapPath: "./models/model21_104class/colormap.json",
     preModelId: 1, // model run first e.g.  Brain_Extraction  { null, 1, 2, ..  }
     preModelPostProcess: false, // If true, perform postprocessing to remove noisy regions after preModel inference generate output.
     isBatchOverlapEnable: false, // create extra overlap batches for inference
@@ -405,6 +405,6 @@ const inferenceModelsList = [
       "This model may need dedicated graphics card.  For more info please check with Browser Resources <i class='fa fa-cogs'></i>.", // Warning message to show when select the model.
     inferenceDelay: 100, // Delay in ms time while looping layers applying.
     description:
-      'FreeSurfer aparc+aseg atlas 104 parcellate brain areas into 104 regions. It contains a combination of the Desikan-Killiany atlas for cortical area and also segmentation of subcortical regions. The model use sequential convolution for inference to overcome browser memory limitations but leads to longer computation time. '
-  }
-] // inferenceModelsList
+      "FreeSurfer aparc+aseg atlas 104 parcellate brain areas into 104 regions. It contains a combination of the Desikan-Killiany atlas for cortical area and also segmentation of subcortical regions. The model use sequential convolution for inference to overcome browser memory limitations but leads to longer computation time. ",
+  },
+]; // inferenceModelsList
