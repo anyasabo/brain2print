@@ -2,7 +2,7 @@ import * as tf from "@tensorflow/tfjs";
 import { BWLabeler } from "./bwlabels.js";
 
 export async function addZeroPaddingTo3dTensor(
-  tensor3d: tf.Tensor3D,
+  tensor3d: tf.Tensor,
   rowPadArr: [number, number] = [1, 1],
   colPadArr: [number, number] = [1, 1],
   depthPadArr: [number, number] = [1, 1],
@@ -161,6 +161,9 @@ export async function convByOutputChannelAndInputSlicing(
     }
   }
 
+  if (outputChannels === null) {
+    throw new Error("convByOutputChannelAndInputSlicing produced no output");
+  }
   return outputChannels;
 }
 
@@ -168,7 +171,7 @@ export async function draw3dObjBoundingVolume(
   unstackOutVolumeTensor: tf.Tensor[],
   opts: unknown,
   modelEntry: unknown,
-  callbackImg: (brainOut: number[], opts: unknown, modelEntry: unknown) => void,
+  callbackImg: (brainOut: unknown, opts: unknown, modelEntry: unknown) => void,
 ) {
   const allOutputSlices3DCC = [];
 
@@ -202,7 +205,7 @@ export async function draw3dObjBoundingVolume(
   callbackImg(brainOut, opts, modelEntry);
 }
 // return first and last non-zero voxel in row (dim = 0), column (1) or slice (2) dimension
-async function firstLastNonZero(tensor3D: tf.Tensor3D, dim = 0) {
+async function firstLastNonZero(tensor3D: tf.Tensor, dim = 0) {
   let mxs: number[] = [];
   if (dim === 0) {
     mxs = tensor3D.max(2).max(1).arraySync() as number[];
@@ -228,7 +231,7 @@ async function firstLastNonZero(tensor3D: tf.Tensor3D, dim = 0) {
   return [mn, mx];
 }
 
-export async function firstLastNonZero3D(tensor3D: tf.Tensor3D) {
+export async function firstLastNonZero3D(tensor3D: tf.Tensor) {
   const [row_min, row_max] = await firstLastNonZero(tensor3D, 0);
   const [col_min, col_max] = await firstLastNonZero(tensor3D, 1);
   const [depth_min, depth_max] = await firstLastNonZero(tensor3D, 2);
@@ -297,7 +300,7 @@ export async function generateBrainMask(
 }
 
 export async function generateOutputSlicesV2(
-  img: Uint8Array | Int32Array | Float32Array,
+  img: Uint8Array | Int32Array | Float32Array | Uint32Array,
   OutVolumeTensorShape: number[],
   OutVolumeTensorType: string,
   num_of_slices: number,
@@ -426,12 +429,13 @@ export async function getModelNumParameters(modelObj: tf.LayersModel) {
 export async function isModelChnlLast(
   // biome-ignore lint/suspicious/noExplicitAny: layersByDepth/dataFormat are not on the public tfjs type
   modelObj: any,
-) {
+): Promise<boolean> {
   for (let layerIdx = 0; layerIdx < modelObj.layers.length; layerIdx++) {
     if (modelObj.layersByDepth[layerIdx][0].dataFormat) {
       return modelObj.layersByDepth[layerIdx][0].dataFormat === "channelsLast";
     }
   }
+  return false;
 }
 
 export async function load_model(modelUrl: string) {
@@ -551,7 +555,7 @@ export async function quantileNormalizeVolumeData(
 }
 
 export async function removeZeroPaddingFrom3dTensor(
-  tensor3d: tf.Tensor3D,
+  tensor3d: tf.Tensor,
   rowPad = 1,
   colPad = 1,
   depthPad = 1,
@@ -567,7 +571,7 @@ export async function removeZeroPaddingFrom3dTensor(
 }
 
 export async function resizeWithZeroPadding(
-  croppedTensor3d: tf.Tensor3D,
+  croppedTensor3d: tf.Tensor,
   newDepth: number,
   newHeight: number,
   newWidth: number,
