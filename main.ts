@@ -258,13 +258,14 @@ async function main() {
       locationEl.innerHTML = "&nbsp;&nbsp;" + data.string;
     }
   }
+  // Prefer WebGPU (the modern backend); allow ?backend=webgl2 to fall back.
+  const backendParam = new URLSearchParams(location.search).get("backend");
+  const backend: "webgpu" | "webgl2" =
+    backendParam === "webgl2" ? "webgl2" : "webgpu";
   const defaults = {
     backColor: [0.4, 0.4, 0.4, 1],
     is3DCrosshairVisible: true,
-    // niivue v1's combined build defaults to WebGPU, which overflows the
-    // texture-size limit on the multiplanar tiling here. Use the WebGL2 backend,
-    // which is what 0.69 used and what the tfjs segmentation already runs on.
-    backend: "webgl2" as const,
+    backend,
     // Show the multiplanar view with the 3D render, replacing the old
     // multiplanarForceRender option that v1 removed.
     sliceType: SLICE_TYPE.MULTIPLANAR,
